@@ -1,10 +1,10 @@
 # ai-models-gencast
 
-`ai-models-gencast` is an [ai-models](https://github.com/ecmwf-lab/ai-models) plugin to run Google Deepmind's [Gencast](https://github.com/deepmind/graphcast).
+`ai-models-gencast` is an [ai-models](https://github.com/ecmwf-lab/ai-models) plugin to run Google Deepmind's [GenCast](https://github.com/deepmind/graphcast).
 
-GenCast: Diffusion-based ensemble forecasting for medium-range weather, arXiv preprint: 2312.15796, 2023. https://arxiv.org/abs/2312.15796
+GenCast: Diffusion-based ensemble forecasting for medium-range weather, arXiv preprint: 2312.15796, 2024. https://arxiv.org/abs/2312.15796
 
-Gencast was created by Ilan Price, Alvaro Sanchez-Gonzalez, Ferran Alet, Tom R. Andersson, Andrew El-Kadi, Dominic Masters, Timo Ewalds, Jacklynn Stott, Shakir Mohamed, Peter Battaglia, Remi Lam, Matthew Willson
+GenCast was created by Ilan Price, Alvaro Sanchez-Gonzalez, Ferran Alet, Tom R. Andersson, Andrew El-Kadi, Dominic Masters, Timo Ewalds, Jacklynn Stott, Shakir Mohamed, Peter Battaglia, Remi Lam, Matthew Willson
 
 The model weights are made available for use under the terms of the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0). You may obtain a copy of the License at: https://creativecommons.org/licenses/by-nc-sa/4.0/.
 
@@ -20,11 +20,14 @@ This will install the package and most of its dependencies.
 
 Then to install gencast dependencies (and Jax on GPU):
 
+> [!CAUTION]
+> GenCast requires significant GPU & Memory Resources.
+> See [here](https://github.com/google-deepmind/graphcast/blob/main/docs/cloud_vm_setup.md#gencast-memory-requirements)
 
 
-### Gencast and Jax
+### GenCast and Jax
 
-Gencast depends on Jax, which needs special installation instructions for your specific hardware.
+GenCast depends on Jax, which needs special installation instructions for your specific hardware.
 
 Please see the [installation guide](https://github.com/google/jax#installation) to follow the correct instructions.
 

@@ -1,0 +1,2 @@
+jax==0.4.36
+git+https://github.com/deepmind/graphcast.git
