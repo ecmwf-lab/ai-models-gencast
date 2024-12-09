@@ -68,7 +68,6 @@ def create_training_xarray(
     forcing_variables,
     constants,
     timer,
-    context,
 ):
     time_deltas = [
         datetime.timedelta(hours=h)

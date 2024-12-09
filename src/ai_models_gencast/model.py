@@ -231,7 +231,6 @@ class GenCast(Model):
                     forcing_variables=self.forcing_variables,
                     constants=self.override_constants,
                     timer=self.timer,
-                    context=self,
                 )
 
             gc.collect()
@@ -321,7 +320,7 @@ class GenCast(Model):
         import argparse
 
         parser = argparse.ArgumentParser("ai-models gencast")
-        parser.add_argument("--num_ensemble_members", type=int, help="Number of ensemble members to run", required=True)
+        parser.add_argument("--num_ensemble_members", type=int, help="Number of ensemble members to run", default=1)
         parser.add_argument("--use-an", action="store_true")
         parser.add_argument("--override-constants")
         return parser.parse_args(args)
