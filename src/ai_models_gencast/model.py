@@ -217,7 +217,9 @@ class GenCast(Model):
                 LOG.info("Model license: %s", self.ckpt.license)
 
             jax.jit(self._with_configs(run_forward.init))
-            self.model = self._drop_state(self._with_params(jax.jit(self._with_configs(run_forward.apply))))
+            self.model = xarray_jax.pmap(
+                self._drop_state(self._with_params(jax.jit(self._with_configs(run_forward.apply)))), dim="sample"
+            )
 
     def run(self):
 
@@ -290,7 +292,7 @@ class GenCast(Model):
 
             chunks = []
             for chunk in rollout.chunked_prediction_generator_multiple_runs(
-                xarray_jax.pmap(self.model, dim="sample"),
+                self.model,
                 rngs=rngs,
                 inputs=input_xr,
                 targets_template=template * np.nan,
