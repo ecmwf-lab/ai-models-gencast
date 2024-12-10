@@ -63,7 +63,8 @@ def save_output_xarray(
                         values,
                         template=fs,
                         startStep=0,
-                        number=ensemble_member,
+                        # Offset to align with GRIB numbering, e.g. 0 is control, 1+ is ensemble
+                        number=ensemble_member + 1,
                         endStep=(time + 1) * hour_steps,
                     )
                 else:
@@ -71,5 +72,6 @@ def save_output_xarray(
                         values,
                         template=fs,
                         step=(time + 1) * hour_steps,
-                        number=ensemble_member,
+                        # Offset to align with GRIB numbering, e.g. 0 is control, 1+ is ensemble
+                        number=ensemble_member + 1,
                     )
