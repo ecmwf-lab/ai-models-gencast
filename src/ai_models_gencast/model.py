@@ -217,8 +217,14 @@ class GenCast(Model):
                 LOG.info("Model license: %s", self.ckpt.license)
 
             jax.jit(self._with_configs(run_forward.init))
+            run_forward_jitted = jax.jit(
+                lambda rng, inputs, targets_template, forcings: run_forward.apply(
+                    rng, inputs, targets_template, forcings
+                )
+            )
+            # We also produce a pmapped version for running in parallel.
             self.model = xarray_jax.pmap(
-                self._drop_state(self._with_params(jax.jit(self._with_configs(run_forward.apply)))), dim="sample"
+                self._with_params(self._with_configs(self._drop_state(run_forward_jitted))), dim="sample"
             )
 
     def run(self):
@@ -285,9 +291,7 @@ class GenCast(Model):
 
         with self.timer("Doing full rollout prediction in JAX"):
             rng = jax.random.PRNGKey(0)
-            # We fold-in the ensemble member, this way the first N members should always
-            # match across different runs which use take the same inputs
-            # regardless of total ensemble size.
+            # Fold in the member number to the random key
             rngs = np.stack([jax.random.fold_in(rng, i) for i in self.member_number], axis=0)
 
             chunks = []
