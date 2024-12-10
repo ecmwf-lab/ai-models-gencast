@@ -90,6 +90,20 @@ class GenCast(Model):
             f"{param}{level}" for param in self.param_level_pl[0] for level in self.param_level_pl[1]
         ]
 
+        if isinstance(self.member_number, str):
+            self.member_number = list(map(int, self.member_number.split(",")))
+        elif isinstance(self.member_number, int):
+            self.member_number = [int(self.member_number)]
+        elif self.member_number is None:
+            self.member_number = list(range(1, self.num_ensemble_members + 1))
+        else:
+            raise TypeError(f"`member_number` must be a string or int, not {type(self.member_number)}")
+
+        if not len(self.member_number) == self.num_ensemble_members:
+            raise ValueError(
+                f"Number of ensemble members must match `member_number`,\nNot {self.num_ensemble_members=} and {self.member_number=}"
+            )
+
     # Jax doesn't seem to like passing configs as args through the jit. Passing it
     # in via partial (instead of capture by closure) forces jax to invalidate the
     # jit cache if you change configs.
@@ -207,14 +221,26 @@ class GenCast(Model):
 
     def run(self):
 
+        oper_fcst: bool = False
+        if self.num_ensemble_members == 0:
+            oper_fcst = True
+            # Set the number of ensemble members to 1, and id to 0.
+            self.num_ensemble_members = 1
+            self.member_number = [0]
+            self.grib_extra_metadata = {"type": "fc", "stream": "oper"}
+
         if not (self.num_ensemble_members % len(jax.local_devices())) == 0:
             raise ValueError(
                 f"Number of ensemble members must be divisible by number of devices, not {self.num_ensemble_members} and {len(jax.local_devices())}"
             )
 
+        # Remove extra metadata to save input fields
+        _metadata = self.grib_extra_metadata
+        self.grib_extra_metadata = {}
         # We ignore 'tp' so that we make sure that step 0 is a field of zero values
         self.write_input_fields(self.fields_sfc, ignore=["tp"], accumulations=["tp"])
         self.write_input_fields(self.fields_pl)
+        self.grib_extra_metadata = _metadata
 
         with self.timer("Building model"):
             self.load_model()
@@ -260,7 +286,7 @@ class GenCast(Model):
             # We fold-in the ensemble member, this way the first N members should always
             # match across different runs which use take the same inputs
             # regardless of total ensemble size.
-            rngs = np.stack([jax.random.fold_in(rng, i) for i in range(self.num_ensemble_members)], axis=0)
+            rngs = np.stack([jax.random.fold_in(rng, i) for i in self.member_number], axis=0)
 
             chunks = []
             for chunk in rollout.chunked_prediction_generator_multiple_runs(
@@ -290,6 +316,8 @@ class GenCast(Model):
                 hour_steps=self.hour_steps,
                 num_ensemble_members=self.num_ensemble_members,
                 lagged=self.lagged,
+                oper_fcst=oper_fcst,
+                member_number=self.member_number,
             )
 
     def patch_retrieve_request(self, r):
@@ -320,7 +348,10 @@ class GenCast(Model):
         import argparse
 
         parser = argparse.ArgumentParser("ai-models gencast")
-        parser.add_argument("--num_ensemble_members", type=int, help="Number of ensemble members to run", default=1)
+        parser.add_argument("--num-ensemble-members", type=int, help="Number of ensemble members to run", default=1)
+        parser.add_argument(
+            "--member-number", help="Member Number, can only be used if `num_ensemble_members` == 1", default=None
+        )
         parser.add_argument("--use-an", action="store_true")
         parser.add_argument("--override-constants")
         return parser.parse_args(args)
