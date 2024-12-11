@@ -368,7 +368,7 @@ class GenCast0p25deg(GenCast):
 
 class GenCast0p25degOper(GenCast0p25deg):
     def __init__(self, *args, **kwargs):
-        self.download_files.append("params/GenCast 0p25deg Operational <2019.npz")
+        self.download_files.append("params/GenCast 0p25deg Operational <2022.npz")
         super().__init__(*args, **kwargs)
 
 
