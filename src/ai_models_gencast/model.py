@@ -91,7 +91,7 @@ class GenCast(Model):
         ]
 
         if isinstance(self.member_number, str):
-            self.member_number = list(map(int, self.member_number.split(",")))
+            self.member_number = list(set(map(int, self.member_number.split(","))))
         elif isinstance(self.member_number, int):
             self.member_number = [int(self.member_number)]
         elif self.member_number is None:
