@@ -217,14 +217,9 @@ class GenCast(Model):
                 LOG.info("Model license: %s", self.ckpt.license)
 
             jax.jit(self._with_configs(run_forward.init))
-            run_forward_jitted = jax.jit(
-                lambda rng, inputs, targets_template, forcings: run_forward.apply(
-                    rng, inputs, targets_template, forcings
-                )
-            )
-            # We also produce a pmapped version for running in parallel.
+
             self.model = xarray_jax.pmap(
-                self._with_params(self._with_configs(self._drop_state(run_forward_jitted))), dim="sample"
+                jax.jit(self._with_params(self._with_configs(self._drop_state(run_forward.apply)))), dim="sample"
             )
 
     def run(self):
