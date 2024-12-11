@@ -39,20 +39,22 @@ except ModuleNotFoundError as e:
     raise ModuleNotFoundError(f"{msg}\n{e}")
 
 
+SHARED_DOWNLOAD_FILES = [
+    "stats/diffs_stddev_by_level.nc",
+    "stats/mean_by_level.nc",
+    "stats/stddev_by_level.nc",
+    "stats/min_by_level.nc",
+]
+
+
 class GenCast(Model):
     download_url = "https://storage.googleapis.com/dm_graphcast/gencast/{file}"
-    expver = "dmge"
 
     grib_edition = 1
     grib_extra_metadata = {"type": "pf", "stream": "enfo"}
 
     # Download
-    download_files = [
-        "stats/diffs_stddev_by_level.nc",
-        "stats/mean_by_level.nc",
-        "stats/stddev_by_level.nc",
-        "stats/min_by_level.nc",
-    ]
+    download_files = SHARED_DOWNLOAD_FILES
 
     # Input
     area = [90, 0, -90, 360]
@@ -360,30 +362,32 @@ class GenCast(Model):
 
 class GenCast0p25deg(GenCast):
     grid = [0.25, 0.25]
+    expver = "genc"
 
-    def __init__(self, *args, **kwargs):
-        self.download_files.append("params/GenCast 0p25deg <2019.npz")
-        super().__init__(*args, **kwargs)
+    download_files = SHARED_DOWNLOAD_FILES + [
+        "params/GenCast 0p25deg <2019.npz",
+    ]
 
 
 class GenCast0p25degOper(GenCast0p25deg):
-    def __init__(self, *args, **kwargs):
-        self.download_files.append("params/GenCast 0p25deg Operational <2022.npz")
-        super().__init__(*args, **kwargs)
+    download_files = SHARED_DOWNLOAD_FILES + [
+        "params/GenCast 0p25deg Operational <2022.npz",
+    ]
 
 
 class GenCast1p0deg(GenCast):
     grid = [1.0, 1.0]
+    expver = "ge10"
 
-    def __init__(self, *args, **kwargs):
-        self.download_files.append("params/GenCast 1p0deg <2019.npz")
-        super().__init__(*args, **kwargs)
+    download_files = SHARED_DOWNLOAD_FILES + [
+        "params/GenCast 1p0deg <2019.npz",
+    ]
 
 
 class GenCast1p0degMini(GenCast1p0deg):
-    def __init__(self, *args, **kwargs):
-        self.download_files.append("params/GenCast 1p0deg Mini <2019.npz")
-        super().__init__(*args, **kwargs)
+    download_files = SHARED_DOWNLOAD_FILES + [
+        "params/GenCast 1p0deg Mini <2019.npz",
+    ]
 
 
 def model(model_version, **kwargs):
