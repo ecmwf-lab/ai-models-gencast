@@ -296,8 +296,9 @@ class GenCast(Model):
             stepper = self.stepper(self.hour_steps)
 
         with stepper:
-            with warnings.catch_warnings(action="ignore", category=FutureWarning):
+            with warnings.catch_warnings(action="ignore"):
                 # Remove GraphCast/GenCast xarray future warnings
+                warnings.filterwarnings("ignore", category=FutureWarning)
                 for i, chunk in enumerate(
                     rollout.chunked_prediction_generator_multiple_runs(
                         self.model,
