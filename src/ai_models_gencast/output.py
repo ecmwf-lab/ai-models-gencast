@@ -23,14 +23,14 @@ def save_output_xarray(
     write,
     all_fields,
     ordering,
-    lead_time,
+    time,
     hour_steps,
     num_ensemble_members,
     lagged,
     oper_fcst,
-    member_number,
+    member_numbers,
 ):
-    LOG.info("Converting output xarray to GRIB and saving")
+    # LOG.info("Converting output xarray to GRIB and saving")
 
     output["total_precipitation_12hr"] = output.data_vars["total_precipitation_12hr"].cumsum(dim="time")
 
@@ -40,39 +40,39 @@ def save_output_xarray(
         remapping={"param_level": "{param}{levelist}"},
     )
 
-    for time in range(lead_time // hour_steps):
-        for fs in all_fields[: len(all_fields) // len(lagged)]:
-            param, level = fs.metadata("shortName"), fs.metadata("levelist", default=None)
-            for i in range(num_ensemble_members):
-                ensemble_member = member_number[i]
+    for fs in all_fields[: len(all_fields) // len(lagged)]:
+        param, level = fs.metadata("shortName"), fs.metadata("levelist", default=None)
+        for i in range(num_ensemble_members):
+            ensemble_member = member_numbers[i]  # Associated member number
+            time_idx = 0  # As we are saving each time individually, the index to select is 0
 
-                if level is not None:
-                    param = GRIB_TO_XARRAY_PL.get(param, param)
-                    if param not in target_variables:
-                        continue
-                    values = output.isel(time=time).sel(level=level).sel(sample=i).data_vars[param].values
-                else:
-                    param = GRIB_TO_CF.get(param, param)
-                    param = GRIB_TO_XARRAY_SFC.get(param, param)
-                    if param not in target_variables:
-                        continue
-                    values = output.isel(time=time).sel(sample=i).data_vars[param].values
+            if level is not None:
+                param = GRIB_TO_XARRAY_PL.get(param, param)
+                if param not in target_variables:
+                    continue
+                values = output.isel(time=time_idx).sel(level=level).isel(sample=i).data_vars[param].values
+            else:
+                param = GRIB_TO_CF.get(param, param)
+                param = GRIB_TO_XARRAY_SFC.get(param, param)
+                if param not in target_variables:
+                    continue
+                values = output.isel(time=time_idx).isel(sample=i).data_vars[param].values
 
-                # We want to field north=>south
+            # We want to field north=>south
 
-                values = np.flipud(values.reshape(fs.shape))
+            values = np.flipud(values.reshape(fs.shape))
 
-                if oper_fcst:
-                    extra_write_kwargs = {}
-                else:
-                    extra_write_kwargs = dict(number=ensemble_member)
+            if oper_fcst:
+                extra_write_kwargs = {}
+            else:
+                extra_write_kwargs = dict(number=ensemble_member)
 
-                if param == "total_precipitation_12hr":
-                    write(values, template=fs, startStep=0, endStep=(time + 1) * hour_steps, **extra_write_kwargs)
-                else:
-                    write(
-                        values,
-                        template=fs,
-                        step=(time + 1) * hour_steps,
-                        **extra_write_kwargs,
-                    )
+            if param == "total_precipitation_12hr":
+                write(values, template=fs, startStep=0, endStep=time * hour_steps, **extra_write_kwargs)
+            else:
+                write(
+                    values,
+                    template=fs,
+                    step=time * hour_steps,
+                    **extra_write_kwargs,
+                )

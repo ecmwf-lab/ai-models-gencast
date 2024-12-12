@@ -11,6 +11,7 @@ import functools
 import gc
 import logging
 import os
+from contextlib import nullcontext
 
 import numpy as np
 import xarray
@@ -239,13 +240,9 @@ class GenCast(Model):
                 f"Number of ensemble members must be divisible by number of devices, not {self.num_ensemble_members} and {len(jax.local_devices())}"
             )
 
-        # Remove extra metadata to save input fields
-        _metadata = self.grib_extra_metadata
-        self.grib_extra_metadata = {}
         # We ignore 'tp' so that we make sure that step 0 is a field of zero values
         self.write_input_fields(self.fields_sfc, ignore=["tp"], accumulations=["tp"])
         self.write_input_fields(self.fields_pl)
-        self.grib_extra_metadata = _metadata
 
         with self.timer("Building model"):
             self.load_model()
@@ -286,42 +283,52 @@ class GenCast(Model):
                 input_xr.to_netcdf("input_xr.nc")
                 forcings.to_netcdf("forcings_xr.nc")
 
-        with self.timer("Doing full rollout prediction in JAX"):
-            rng = jax.random.PRNGKey(0)
-            # Fold in the member number to the random key
-            rngs = np.stack([jax.random.fold_in(rng, i) for i in self.member_number], axis=0)
+        rng = jax.random.PRNGKey(0)
+        # Fold in the member number to the random key
+        rngs = np.stack([jax.random.fold_in(rng, i) for i in self.member_number], axis=0)
 
-            chunks = []
-            for chunk in rollout.chunked_prediction_generator_multiple_runs(
-                self.model,
-                rngs=rngs,
-                inputs=input_xr,
-                targets_template=template * np.nan,
-                forcings=forcings,
-                num_steps_per_chunk=1,
-                num_samples=self.num_ensemble_members,
-                pmap_devices=jax.local_devices(),
+        # If we have only one ensemble member, we can use the stepper as a logger
+        # Otherwise due to the repeating nature of the ensemble members, we can't use it
+        can_simple_step = self.num_ensemble_members // len(jax.local_devices()) == 1
+        stepper = nullcontext()
+        if can_simple_step:
+            stepper = self.stepper(self.hour_steps)
+
+        with stepper:
+            for i, chunk in enumerate(
+                rollout.chunked_prediction_generator_multiple_runs(
+                    self.model,
+                    rngs=rngs,
+                    inputs=input_xr,
+                    targets_template=template * np.nan,
+                    forcings=forcings,
+                    num_steps_per_chunk=1,
+                    num_samples=self.num_ensemble_members,
+                    pmap_devices=jax.local_devices(),
+                )
             ):
-                chunks.append(chunk)
-            output = xarray.combine_by_coords(chunks)
+                time_step = (i % (self.lead_time // self.hour_steps)) + 1
+                ensemble_chunk = ((i // (self.lead_time // self.hour_steps))) * len(jax.local_devices())
+                member_number_subset = self.member_number[ensemble_chunk : ensemble_chunk + len(jax.local_devices())]
 
-            if self.debug:
-                output.to_netcdf("output.nc")
+                if self.debug:
+                    chunk.to_netcdf(f"chunk-{time_step=}-{ensemble_chunk=}-{member_number_subset=}.nc")
 
-        with self.timer("Saving output data"):
-            save_output_xarray(
-                output=output,
-                write=self.write,
-                target_variables=self.task_config.target_variables,
-                all_fields=self.all_fields,
-                ordering=self.ordering,
-                lead_time=self.lead_time,
-                hour_steps=self.hour_steps,
-                num_ensemble_members=self.num_ensemble_members,
-                lagged=self.lagged,
-                oper_fcst=oper_fcst,
-                member_number=self.member_number,
-            )
+                save_output_xarray(
+                    output=chunk,
+                    write=self.write,
+                    target_variables=self.task_config.target_variables,
+                    all_fields=self.all_fields,
+                    ordering=self.ordering,
+                    time=time_step,
+                    hour_steps=self.hour_steps,
+                    lagged=self.lagged,
+                    oper_fcst=oper_fcst,
+                    num_ensemble_members=len(jax.local_devices()),
+                    member_numbers=member_number_subset,
+                )
+                if can_simple_step:
+                    stepper(i, time_step * self.hour_steps)
 
     def patch_retrieve_request(self, r):
         if r.get("class", "od") != "od":
@@ -351,9 +358,16 @@ class GenCast(Model):
         import argparse
 
         parser = argparse.ArgumentParser("ai-models gencast")
-        parser.add_argument("--num-ensemble-members", type=int, help="Number of ensemble members to run", default=1)
         parser.add_argument(
-            "--member-number", help="Member Number, can only be used if `num_ensemble_members` == 1", default=None
+            "--num-ensemble-members",
+            type=int,
+            help="Number of ensemble members to run, If 0 set data as 'type=fc'.",
+            default=0,
+        )
+        parser.add_argument(
+            "--member-number",
+            help="Member Number/s, if multiple num-ensemble-members>1, seperate by ','. If not given will be range.",
+            default=None,
         )
         parser.add_argument("--use-an", action="store_true")
         parser.add_argument("--override-constants")
