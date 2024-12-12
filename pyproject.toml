@@ -55,6 +55,7 @@ dependencies = [
   "ai-models>=0.7.4",
   "dm-tree",
   "dm-haiku",
+  "xarray<=2024.11.0" # Locked to avoid the FutureChange in xarray about The return type of `Dataset.dims`
 ]
 
 optional-dependencies.dev = [

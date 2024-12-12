@@ -11,6 +11,7 @@ import functools
 import gc
 import logging
 import os
+import warnings
 from contextlib import nullcontext
 
 import numpy as np
@@ -295,40 +296,44 @@ class GenCast(Model):
             stepper = self.stepper(self.hour_steps)
 
         with stepper:
-            for i, chunk in enumerate(
-                rollout.chunked_prediction_generator_multiple_runs(
-                    self.model,
-                    rngs=rngs,
-                    inputs=input_xr,
-                    targets_template=template * np.nan,
-                    forcings=forcings,
-                    num_steps_per_chunk=1,
-                    num_samples=self.num_ensemble_members,
-                    pmap_devices=jax.local_devices(),
-                )
-            ):
-                time_step = (i % (self.lead_time // self.hour_steps)) + 1
-                ensemble_chunk = ((i // (self.lead_time // self.hour_steps))) * len(jax.local_devices())
-                member_number_subset = self.member_number[ensemble_chunk : ensemble_chunk + len(jax.local_devices())]
+            with warnings.catch_warnings(action="ignore", category=FutureWarning):
+                # Remove GraphCast/GenCast xarray future warnings
+                for i, chunk in enumerate(
+                    rollout.chunked_prediction_generator_multiple_runs(
+                        self.model,
+                        rngs=rngs,
+                        inputs=input_xr,
+                        targets_template=template * np.nan,
+                        forcings=forcings,
+                        num_steps_per_chunk=1,
+                        num_samples=self.num_ensemble_members,
+                        pmap_devices=jax.local_devices(),
+                    )
+                ):
+                    time_step = (i % (self.lead_time // self.hour_steps)) + 1
+                    ensemble_chunk = ((i // (self.lead_time // self.hour_steps))) * len(jax.local_devices())
+                    member_number_subset = self.member_number[
+                        ensemble_chunk : ensemble_chunk + len(jax.local_devices())
+                    ]
 
-                if self.debug:
-                    chunk.to_netcdf(f"chunk-{time_step=}-{ensemble_chunk=}-{member_number_subset=}.nc")
+                    if self.debug:
+                        chunk.to_netcdf(f"chunk-{time_step=}-{ensemble_chunk=}-{member_number_subset=}.nc")
 
-                save_output_xarray(
-                    output=chunk,
-                    write=self.write,
-                    target_variables=self.task_config.target_variables,
-                    all_fields=self.all_fields,
-                    ordering=self.ordering,
-                    time=time_step,
-                    hour_steps=self.hour_steps,
-                    lagged=self.lagged,
-                    oper_fcst=oper_fcst,
-                    num_ensemble_members=len(jax.local_devices()),
-                    member_numbers=member_number_subset,
-                )
-                if can_simple_step:
-                    stepper(i, time_step * self.hour_steps)
+                    save_output_xarray(
+                        output=chunk,
+                        write=self.write,
+                        target_variables=self.task_config.target_variables,
+                        all_fields=self.all_fields,
+                        ordering=self.ordering,
+                        time=time_step,
+                        hour_steps=self.hour_steps,
+                        lagged=self.lagged,
+                        oper_fcst=oper_fcst,
+                        num_ensemble_members=len(jax.local_devices()),
+                        member_numbers=member_number_subset,
+                    )
+                    if can_simple_step:
+                        stepper(i, time_step * self.hour_steps)
 
     def patch_retrieve_request(self, r):
         if r.get("class", "od") != "od":
