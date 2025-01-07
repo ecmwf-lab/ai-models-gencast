@@ -6,6 +6,7 @@
 # nor does it submit to any jurisdiction.
 
 import logging
+from collections import defaultdict
 
 import numpy as np
 
@@ -14,6 +15,14 @@ from .convert import GRIB_TO_XARRAY_PL
 from .convert import GRIB_TO_XARRAY_SFC
 
 LOG = logging.getLogger(__name__)
+
+ACCUMULATION_VALUES = defaultdict(lambda: defaultdict(lambda: 0))
+
+
+def accumulate(values, param: str, ensemble_number: int):
+    """Accumulate values for a given parameter and ensemble member"""
+    ACCUMULATION_VALUES[param][ensemble_number] += values
+    return ACCUMULATION_VALUES[param][ensemble_number]
 
 
 def save_output_xarray(
@@ -32,7 +41,7 @@ def save_output_xarray(
 ):
     # LOG.info("Converting output xarray to GRIB and saving")
 
-    output["total_precipitation_12hr"] = output.data_vars["total_precipitation_12hr"].cumsum(dim="time")
+    # output["total_precipitation_12hr"] = output.data_vars["total_precipitation_12hr"].cumsum(dim="time")
 
     all_fields = all_fields.order_by(
         valid_datetime="descending",
@@ -68,7 +77,10 @@ def save_output_xarray(
                 extra_write_kwargs = dict(number=ensemble_member)
 
             if param == "total_precipitation_12hr":
-                write(values, template=fs, startStep=0, endStep=time * hour_steps, **extra_write_kwargs)
+                values = accumulate(values, param, ensemble_member)
+                write(
+                    values, template=fs, startStep=0, endStep=time * hour_steps, stepType="accum", **extra_write_kwargs
+                )
             else:
                 write(
                     values,
