@@ -1,4 +1,4 @@
-# (C) Copyright 2024 European Centre for Medium-Range Weather Forecasts.
+# (C) Copyright 2025 European Centre for Medium-Range Weather Forecasts.
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 # In applying this licence, ECMWF does not waive the privileges and immunities
@@ -57,6 +57,7 @@ class GenCast(Model):
 
     # Download
     download_files = SHARED_DOWNLOAD_FILES
+    download_masks = []
 
     # Input
     area = [90, 0, -90, 360]
@@ -197,7 +198,7 @@ class GenCast(Model):
                     forcings=forcings,
                 )
 
-            with open(get_path(self.download_files[-1]), "rb") as f:
+            with open(get_path(self.download_files[4]), "rb") as f:
                 self.ckpt = checkpoint.load(f, gencast.CheckPoint)
                 self.params = self.ckpt.params
                 self.state = {}
@@ -225,6 +226,21 @@ class GenCast(Model):
                 jax.jit(self._with_params(self._with_configs(self._drop_state(run_forward.apply)))), dim="sample"
             )
 
+    def download_assets(self, **kwargs):
+        super().download_assets(**kwargs)
+
+        from multiurl import download
+
+        mask_url = "https://get.ecmwf.int/repository/test-data/ai-models/gencast/{file}"
+
+        for file in self.download_masks:
+            asset = os.path.realpath(os.path.join(self.assets, file))
+            if not os.path.exists(asset):
+                os.makedirs(os.path.dirname(asset), exist_ok=True)
+                LOG.info("Downloading %s", asset)
+                download(mask_url.format(file=file), asset + ".download")
+                os.rename(asset + ".download", asset)
+
     def run(self):
 
         oper_fcst: bool = False
@@ -248,7 +264,7 @@ class GenCast(Model):
             self.load_model()
 
         with self.timer("Creating input data (total)"):
-            with self.timer("Creating training data"):
+            with self.timer("Creating input data"):
                 training_xarray, time_deltas = create_training_xarray(
                     fields_sfc=self.fields_sfc,
                     fields_pl=self.fields_pl,
@@ -260,6 +276,15 @@ class GenCast(Model):
                     constants=self.override_constants,
                     timer=self.timer,
                 )
+
+            def get_path(filename):
+                return os.path.join(self.assets, filename)
+
+            training_xarray["land_sea_mask"].values = np.load(get_path(self.download_masks[1]))
+            training_xarray["geopotential_at_surface"].values = np.load(get_path(self.download_masks[0]))
+
+            sst_mask = np.load(get_path(self.download_masks[2])) is False
+            training_xarray["sea_surface_temperature"] = training_xarray["sea_surface_temperature"].where(sst_mask)
 
             gc.collect()
 
@@ -387,6 +412,12 @@ class GenCast0p25deg(GenCast):
         "params/GenCast 0p25deg <2019.npz",
     ]
 
+    download_masks = [
+        "static/geo_0.25.npy",
+        "static/lsm_0.25.npy",
+        "static/nans_0.25.npy",
+    ]
+
 
 class GenCast0p25degOper(GenCast0p25deg):
     download_files = SHARED_DOWNLOAD_FILES + [
@@ -400,6 +431,12 @@ class GenCast1p0deg(GenCast):
 
     download_files = SHARED_DOWNLOAD_FILES + [
         "params/GenCast 1p0deg <2019.npz",
+    ]
+
+    download_masks = [
+        "static/geo_1.0.npy",
+        "static/lsm_1.0.npy",
+        "static/nans_1.0.npy",
     ]
 
 
