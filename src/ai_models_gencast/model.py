@@ -78,7 +78,6 @@ class GenCast(Model):
     )
 
     forcing_variables = [
-        "toa_incident_solar_radiation",
         # Not calling julian day and day here, due to differing assumptions with Deepmind
         # Those forcings are created by graphcast.data_utils
     ]

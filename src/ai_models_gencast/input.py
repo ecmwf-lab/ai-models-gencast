@@ -10,7 +10,6 @@ import datetime
 import logging
 from collections import defaultdict
 
-import earthkit.data as ekd
 import numpy as np
 import xarray as xr
 
@@ -37,24 +36,24 @@ CF_NAME_PL = {
 }
 
 
-def forcing_variables_numpy(sample, forcing_variables, dates):
-    """Generate variables from earthkit-data
+# def forcing_variables_numpy(sample, forcing_variables, dates):
+#     """Generate variables from earthkit-data
 
-    Args:
-        date (datetime): Datetime of current time step in forecast
-        params (List[str]): Parameters to calculate as constants
+#     Args:
+#         date (datetime): Datetime of current time step in forecast
+#         params (List[str]): Parameters to calculate as constants
 
-    Returns:
-        torch.Tensor: Tensor with constants
-    """
-    ds = ekd.from_source(
-        "forcings",
-        sample,
-        date=dates,
-        param=forcing_variables,
-    )
+#     Returns:
+#         torch.Tensor: Tensor with constants
+#     """
+#     ds = ekd.from_source(
+#         "forcings",
+#         sample,
+#         date=dates,
+#         param=forcing_variables,
+#     )
 
-    return ds.order_by(param=forcing_variables, valid_datetime="ascending").to_numpy(dtype=np.float32)
+#     return ds.order_by(param=forcing_variables, valid_datetime="ascending").to_numpy(dtype=np.float32)
 
 
 def create_training_xarray(
@@ -76,8 +75,8 @@ def create_training_xarray(
 
     all_datetimes = [start_date + time_delta for time_delta in time_deltas]
 
-    with timer("Creating forcing variables"):
-        forcing_numpy = forcing_variables_numpy(fields_sfc, forcing_variables, all_datetimes)
+    # with timer("Creating forcing variables"):
+    #     forcing_numpy = forcing_variables_numpy(fields_sfc, forcing_variables, all_datetimes)
 
     with timer("Converting GRIB to xarray"):
         # Create Input dataset
@@ -85,7 +84,7 @@ def create_training_xarray(
         lat = fields_sfc[0].metadata("distinctLatitudes")
         lon = fields_sfc[0].metadata("distinctLongitudes")
 
-        forcing_numpy = forcing_numpy.reshape(len(forcing_variables), len(all_datetimes), len(lat), len(lon))
+        # forcing_numpy = forcing_numpy.reshape(len(forcing_variables), len(all_datetimes), len(lat), len(lon))
 
         # SURFACE FIELDS
 
@@ -159,10 +158,10 @@ def create_training_xarray(
                 data,
             )
 
-        data_vars["toa_incident_solar_radiation"] = (
-            ["batch", "time", "lat", "lon"],
-            forcing_numpy[0:1, :, :, :],
-        )
+        # data_vars["toa_incident_solar_radiation"] = (
+        #     ["batch", "time", "lat", "lon"],
+        #     forcing_numpy[0:1, :, :, :],
+        # )
 
         training_xarray = xr.Dataset(
             data_vars=data_vars,
