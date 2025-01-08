@@ -79,8 +79,9 @@ def save_output_xarray(
             if param == "total_precipitation_12hr":
                 values = accumulate(values, param, ensemble_member)
                 write(
-                    values, template=fs, startStep=0, endStep=time * hour_steps, stepType="accum", **extra_write_kwargs
+                    values, template=fs, stepType="accum", startStep=0, endStep=time * hour_steps, **extra_write_kwargs
                 )
+                # NOTE: stepType must be before startStep and endStep
             else:
                 write(
                     values,
