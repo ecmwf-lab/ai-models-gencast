@@ -280,11 +280,12 @@ class GenCast(Model):
             def get_path(filename):
                 return os.path.join(self.assets, filename)
 
-            training_xarray["land_sea_mask"].values = np.load(get_path(self.download_masks[1]))
-            training_xarray["geopotential_at_surface"].values = np.load(get_path(self.download_masks[0]))
+            with self.timer("Replacing constants"):
+                training_xarray["land_sea_mask"].values = np.load(get_path(self.download_masks[1]))
+                training_xarray["geopotential_at_surface"].values = np.load(get_path(self.download_masks[0]))
 
-            sst_mask = np.load(get_path(self.download_masks[2])) == False  # noqa: E712
-            training_xarray["sea_surface_temperature"] = training_xarray["sea_surface_temperature"].where(sst_mask)
+                sst_mask = np.load(get_path(self.download_masks[2])) == False  # noqa: E712
+                training_xarray["sea_surface_temperature"] = training_xarray["sea_surface_temperature"].where(sst_mask)
 
             gc.collect()
 
