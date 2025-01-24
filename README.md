@@ -1,4 +1,5 @@
 # ai-models-gencast
+[![Upload Python Package](https://github.com/ecmwf-lab/ai-models-gencast/actions/workflows/python-publish.yml/badge.svg)](https://github.com/ecmwf-lab/ai-models-gencast/actions/workflows/python-publish.yml)
 
 `ai-models-gencast` is an [ai-models](https://github.com/ecmwf-lab/ai-models) plugin to run Google Deepmind's [GenCast](https://github.com/deepmind/graphcast).
 
