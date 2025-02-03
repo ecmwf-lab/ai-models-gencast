@@ -10,6 +10,7 @@ import dataclasses
 import functools
 import gc
 import logging
+import math
 import os
 import warnings
 from contextlib import nullcontext
@@ -336,8 +337,11 @@ class GenCast(Model):
                         pmap_devices=jax.local_devices(),
                     )
                 ):
-                    time_step = (i % (self.lead_time // self.hour_steps)) + 1
-                    ensemble_chunk = ((i // (self.lead_time // self.hour_steps))) * len(jax.local_devices())
+
+                    num_steps = math.ceil(self.lead_time / self.hour_steps)
+
+                    time_step = (i % num_steps) + 1
+                    ensemble_chunk = ((i // num_steps)) * len(jax.local_devices())
                     member_number_subset = self.member_number[
                         ensemble_chunk : ensemble_chunk + len(jax.local_devices())
                     ]
