@@ -19,6 +19,7 @@ requires = [
 name = "ai-models-gencast"
 
 description = "An ai-models plugin to run Deepmind's gencast model"
+readme = "README.md"
 keywords = [
   "ai",
   "tools",
