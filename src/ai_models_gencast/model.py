@@ -54,7 +54,7 @@ class GenCast(Model):
     download_url = "https://storage.googleapis.com/dm_graphcast/gencast/{file}"
 
     grib_edition = 1
-    grib_extra_metadata = {"type": "pf", "stream": "enfo"}
+    grib_extra_metadata = {"type": "pf"}
 
     # Download
     download_files = SHARED_DOWNLOAD_FILES
@@ -108,6 +108,9 @@ class GenCast(Model):
             raise ValueError(
                 f"Number of ensemble members must match `member_number`,\nNot {self.num_ensemble_members=} and {self.member_number=}"
             )
+
+        if "stream" not in getattr(self, "metadata", {}):
+            self.grib_extra_metadata["stream"] = "enfo"
 
     # Jax doesn't seem to like passing configs as args through the jit. Passing it
     # in via partial (instead of capture by closure) forces jax to invalidate the
